@@ -89,7 +89,7 @@ lineplot.CI(Size,Prot.tot.ab,day,data=Prot,xlab="Experimental days",ylab="Specie
 ##################
 # Stats
 ##################
-Mod = lme(Prot.rich ~ Size*day, ~ date|Replicate,data=Prot,method="ML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
+Mod = lme(Prot.rich ~ Size*day, ~ date|Replicate,data=Prot,method="ML",control=lmeControl(optimMethod="REML",maxIter=100,opt="optim"))
 summary(Mod)$tTable
 plot(density(Mod$residuals))
 
