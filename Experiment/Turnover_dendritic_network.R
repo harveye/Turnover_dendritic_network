@@ -82,15 +82,35 @@ date.rep.int = interaction(Prot$day,Prot$Replicate)
 # Figures
 ##################
 
+#pdf(paste0(graphpath,"FigS2.pdf"),width=10,height=5)
 #Protist richness as a function of patch size for each experimental day
 lineplot.CI(Size,Prot.rich,day,data=Prot,xlab="Experimental days",ylab="Species richness")
 #Protist total abundance as a function of patch size for each experimental day
 lineplot.CI(Size,Prot.tot.ab,day,data=Prot,xlab="Experimental days",ylab="Species richness")
+#dev.off()
+
+
+#########
+#Figure 1
+
+
+#######
+#Figure 2
+
+
+
+#######
+#Information for figure 2 legend
+# Samping unit (N) for each path size
+length(Prot$Prot.rich[which(Prot$day==29 & Prot$Size==7.5)])
+length(Prot$Prot.rich[which(Prot$day==29 & Prot$Size==13)])
+length(Prot$Prot.rich[which(Prot$day==29 & Prot$Size==22.5)])
+length(Prot$Prot.rich[which(Prot$day==29 & Prot$Size==45)])
 
 ##################
 # Stats
 ##################
-Mod = lme(Prot.rich ~ Size*day, ~ date|Replicate,data=Prot,method="REML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
+Mod = lme(Prot.rich~ Size*day, ~ date|Replicate,data=Prot,method="REML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
 summary(Mod)$tTable
 plot(density(Mod$residuals))
 
