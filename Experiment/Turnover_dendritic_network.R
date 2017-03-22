@@ -50,7 +50,7 @@ Prot = Prot[which(Prot$Treatment=="Isolated" & Prot$day!=0),]
 ##################
 #Calculate protist TOTAL abundance per microcosm (as opposed to density per volume)
 ##################
-colnames(Prot)[23:29] = c("Rot.ul","Spi.ul","Ble.ul","Pca.ul","Col.ul","Chi.ul","Tet.ul")
+colnames(Prot)[23:30] = c("Rot.ul","Spi.ul","Ble.ul","Pca.ul","Col.ul","Chi.ul","Tet.ul","Other.ul")
 Prot$Rot.all = Prot$Rot.ul*Prot$Size*1000
 Prot$Spi.all = Prot$Spi.ul*Prot$Size*1000
 Prot$Ble.all = Prot$Ble.ul*Prot$Size*1000
@@ -58,8 +58,9 @@ Prot$Pca.all = Prot$Pca.ul*Prot$Size*1000
 Prot$Col.all = Prot$Col.ul*Prot$Size*1000
 Prot$Chi.all = Prot$Chi.ul*Prot$Size*1000
 Prot$Tet.all = Prot$Tet.ul*Prot$Size*1000
+Prot$Other.all = Prot$Other*Prot$Size*1000
 Prot$bioarea.all = Prot$bioarea_per_ul*Prot$Size*1000
-Prot$Prot.tot.ab = rowSums(Prot[,32:38])
+Prot$Prot.tot.ab = rowSums(Prot[,32:39])
 
 #Turn Size back to a factor
 Prot$Size = as.factor(Prot$Size)
@@ -68,9 +69,9 @@ Prot = droplevels(Prot)
 ##################
 #Calculate protist diversity
 ##################
-Prot$Prot.rich = specnumber(Prot[,32:38])
+Prot$Prot.rich = specnumber(Prot[,32:39])
 date.rep.int = interaction(Prot$day,Prot$Replicate)
-(gamma = specnumber(Prot[,32:38],groups=date.rep.int)) #gamma diversity does not chagne
+(gamma = specnumber(Prot[,32:39],groups=date.rep.int)) #gamma diversity does not chagne
 
 
 #########################################################################
@@ -89,7 +90,7 @@ lineplot.CI(Size,Prot.tot.ab,day,data=Prot,xlab="Experimental days",ylab="Specie
 ##################
 # Stats
 ##################
-Mod = lme(Prot.rich ~ Size*day, ~ date|Replicate,data=Prot,method="ML",control=lmeControl(optimMethod="REML",maxIter=100,opt="optim"))
+Mod = lme(Prot.rich ~ Size*day, ~ date|Replicate,data=Prot,method="REML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
 summary(Mod)$tTable
 plot(density(Mod$residuals))
 
@@ -111,15 +112,28 @@ tapply(Prot$Prot.rich[which(Prot$day==29)],Prot$Size[which(Prot$day==29)],sd)
 # Explore changes in beta-diversity
 ##################
 
-Comp.mat1 = Prot[,32:38]
+##Framework developped by Chase et al., 2011 and Catano et al., 2017 (Figure 1)
+#The figure is telling us that bigger patches tend to be more dissimilar in composition
+#than smaller patches and the effect is mainly driven by changes in alpha diversity
+
+#Generate presence-absence matrix 
+Comp.mat1 = Prot[,32:39]
 Comp.mat1[Comp.mat1>0] = 1
 
-Prot.diss.null = raupcrick(Comp.mat1,nsimul=999) 
-Prot.diss = vegdist(Comp.mat1,"jaccard") 
+#Generate dissimilarity matrices 
+Prot.diss.null = raupcrick(Comp.mat1,nsimul=999) #Null expectations accounting for random effects
+Prot.diss = vegdist(Comp.mat1,"jaccard") #observed dissimilarity 
 
-beta.null = betadisper(Prot.diss.null,Prot$Size)
-beta = betadisper(Prot.diss,Prot$Size)
+#Generate beta-diversity (distance from centroid)
+beta.null = betadisper(Prot.diss.null,Prot$Size,type="centroid") #Expected beta-div under null scenario
+permutest(beta.null)
+beta.null #see average distance to centroid
+beta = betadisper(Prot.diss,Prot$Size,type="centroid") #Observed beta-div
+permutest(beta)
+beta #see average distance to centroid
 
+#Generate log response ratio for observed beta-diversity and the null expections 
+#becasue there are many more smaller than larger patches we do use a random re-sampling method
 
 mean.effect.null = 0
 mean.effect = 0
@@ -137,13 +151,20 @@ for(i in 1:10000){
 }
 
 
+#Calculate 95% CI 
 error <- qnorm(0.975)*mean(sd.effect)/sqrt(44)
 error.null <- qnorm(0.975)*mean(sd.effect.null)/sqrt(44)
 
+#Figure (Exactly same interpretation as Figure 1 in Catano et al., 2017)
 #pdf(paste0(fig.path,"Beta_Alpha_Patch.pdf"),width=5,height = 5)
 plot(mean.effect,type="n",ylab="Effect size",xaxt="n",ylim=c(-1,1))
 abline(h=0,lwd=1,col="gray")
 errbar(x=2000,mean(mean.effect),mean(mean.effect)+error,mean(mean.effect)-error,add=T,errbar.col="blue",col="blue",lty=1,pch=16)
 errbar(x=8000,mean(mean.effect.null),mean(mean.effect.null)+error.null,mean(mean.effect.null)-error.null,add=T,errbar.col="orange",col="orange",lty=1,pch=16)
 
+#Reference: Catano, Christopher P., Timothy L. Dickson, and Jonathan A. Myers. 
+#“Dispersal and Neutral Sampling Mediate Contingent Effects of Disturbance on Plant Beta-Diversity: A Meta-Analysis.” 
+#Ecology Letters 20, no. 3 (March 1, 2017): 347–56. doi:10.1111/ele.12733.
+
+#THE END#######
 
