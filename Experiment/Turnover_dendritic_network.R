@@ -44,34 +44,20 @@ Prot$date = with(Prot,revalue(date, c("16-05-02"="20160502", "16-05-23"="2016052
 Prot$date = factor(Prot$date,levels=c("20160502","20160509","20160517","20160523","20160531"))
 Prot = Prot[order(Prot$date),]
 Prot$day = c(rep(0,22),rep(7,158),rep(15,158),rep(21,158),rep(29,158))
-Prot = Prot[which(Prot$Treatment=="Isolated" & Prot$day!=0),]
-
-
-##################
-#Calculate protist TOTAL abundance per microcosm (as opposed to density per volume)
-##################
-colnames(Prot)[23:30] = c("Rot.ul","Spi.ul","Ble.ul","Pca.ul","Col.ul","Chi.ul","Tet.ul","Other.ul")
-Prot$Rot.all = Prot$Rot.ul*Prot$Size*1000
-Prot$Spi.all = Prot$Spi.ul*Prot$Size*1000
-Prot$Ble.all = Prot$Ble.ul*Prot$Size*1000
-Prot$Pca.all = Prot$Pca.ul*Prot$Size*1000
-Prot$Col.all = Prot$Col.ul*Prot$Size*1000
-Prot$Chi.all = Prot$Chi.ul*Prot$Size*1000
-Prot$Tet.all = Prot$Tet.ul*Prot$Size*1000
-Prot$Other.all = Prot$Other*Prot$Size*1000
-Prot$bioarea.all = Prot$bioarea_per_ul*Prot$Size*1000
-Prot$Prot.tot.ab = rowSums(Prot[,32:39])
-
-#Turn Size back to a factor
+Prot = Prot[which(Prot$Treatment!="monoculture" & Prot$day!=0),]
 Prot$Size = as.factor(Prot$Size)
 Prot = droplevels(Prot)
 
 ##################
 #Calculate protist diversity
 ##################
-Prot$Prot.rich = specnumber(Prot[,32:39])
+
+#Create a variable for species richness
+Prot$Prot.rich = specnumber(Prot[,23:30])
+
+#Look for changes in gamma diversity
 date.rep.int = interaction(Prot$day,Prot$Replicate)
-(gamma = specnumber(Prot[,32:39],groups=date.rep.int)) #gamma diversity does not chagne
+(gamma = specnumber(Prot[,23:30],groups=date.rep.int)) #gamma diversity does not chagne
 
 
 #########################################################################
@@ -82,21 +68,12 @@ date.rep.int = interaction(Prot$day,Prot$Replicate)
 # Figures
 ##################
 
-#pdf(paste0(graphpath,"FigS2.pdf"),width=10,height=5)
-#Protist richness as a function of patch size for each experimental day
-lineplot.CI(Size,Prot.rich,day,data=Prot,xlab="Experimental days",ylab="Species richness")
-#Protist total abundance as a function of patch size for each experimental day
-lineplot.CI(Size,Prot.tot.ab,day,data=Prot,xlab="Experimental days",ylab="Species richness")
-#dev.off()
-
-
 #########
 #Figure 1
 
 
 #######
 #Figure 2
-
 
 
 #######
@@ -107,14 +84,32 @@ length(Prot$Prot.rich[which(Prot$day==29 & Prot$Size==13)])
 length(Prot$Prot.rich[which(Prot$day==29 & Prot$Size==22.5)])
 length(Prot$Prot.rich[which(Prot$day==29 & Prot$Size==45)])
 
+
+#######
+#Supplementary Figure 2
+pdf(paste0(graphpath,"FigS2.pdf"),width=10,height=5)
+#Protist richness as a function of patch size for each experimental day
+lineplot.CI(Size,Prot.rich,day,data=Prot,xlab="Experimental days",ylab="Species richness")
+dev.off()
+
+
 ##################
 # Stats
 ##################
-Mod = lme(Prot.rich~ Size*day, ~ date|Replicate,data=Prot,method="REML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
-summary(Mod)$tTable
-plot(density(Mod$residuals))
 
-#Summary information 
+#Model for all experimental days
+Mod = lme(Prot.rich~ Size*day, ~ date|Replicate,data=Prot,method="REML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
+(table = summary(Mod)$tTable)
+plot(density(Mod$residuals))
+write.csv(table,paste0(graphpath,"Mod.ALL.csv"))
+
+#Model for last experimental day only (day 29 - used in all main figures)
+Mod.day29 = lme(Prot.rich~ Size, ~ 1|Replicate,data=Prot[which(Prot$day==29),],method="REML",control=lmeControl(optimMethod="BFGS",maxIter=100,opt="optim"))
+(table.day29 = summary(Mod.day29)$tTable)
+plot(density(Mod.day29$residuals))
+write.csv(table.day29,paste0(graphpath,"Mod.day29.csv"))
+
+#Summary information (in text - Results section) 
 #....Species richness Mean +- SD for day 7
 tapply(Prot$Prot.rich[which(Prot$day==7)],Prot$Size[which(Prot$day==7)],mean)
 tapply(Prot$Prot.rich[which(Prot$day==7)],Prot$Size[which(Prot$day==7)],sd)
@@ -135,14 +130,14 @@ tapply(Prot$Prot.rich[which(Prot$day==29)],Prot$Size[which(Prot$day==29)],sd)
 ##Framework developped by Chase et al., 2011 and Catano et al., 2017 (Figure 1)
 #The figure is telling us that bigger patches tend to be more dissimilar in composition
 #than smaller patches and the effect is mainly driven by changes in alpha diversity
-
+{ 
 #Generate presence-absence matrix 
-Comp.mat1 = Prot[,32:39]
+Comp.mat1 = Prot[,23:30]
 Comp.mat1[Comp.mat1>0] = 1
 
 #Generate dissimilarity matrices 
 Prot.diss.null = raupcrick(Comp.mat1,nsimul=999) #Null expectations accounting for random effects
-Prot.diss = vegdist(Comp.mat1,"jaccard") #observed dissimilarity 
+Prot.diss = vegdist(Comp.mat1+0.000001,"jaccard") #observed dissimilarity 
 
 #Generate beta-diversity (distance from centroid)
 beta.null = betadisper(Prot.diss.null,Prot$Size,type="centroid") #Expected beta-div under null scenario
@@ -186,5 +181,8 @@ errbar(x=8000,mean(mean.effect.null),mean(mean.effect.null)+error.null,mean(mean
 #“Dispersal and Neutral Sampling Mediate Contingent Effects of Disturbance on Plant Beta-Diversity: A Meta-Analysis.” 
 #Ecology Letters 20, no. 3 (March 1, 2017): 347–56. doi:10.1111/ele.12733.
 
+}
+
 #THE END#######
+
 
