@@ -1,4 +1,4 @@
-# Turnover_dendritic_network
+# Disturbance reverses classic biodiversity predictions in river-like landscapes,
 
 ## Code and R data repository for the Harvey et al., article, in revision
 
